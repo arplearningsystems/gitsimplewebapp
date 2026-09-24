@@ -1,118 +1,94 @@
-const storageKey = "learning-notes";
-
-const form = document.querySelector("#note-form");
-const input = document.querySelector("#note-input");
-const list = document.querySelector("#note-list");
+const updateList = document.querySelector("#update-list");
 const emptyState = document.querySelector("#empty-state");
-const count = document.querySelector("#note-count");
-const statusMessage = document.querySelector("#status-message");
+const feedStatus = document.querySelector("#feed-status");
+const updateCount = document.querySelector("#update-count");
 
-let notes = loadNotes();
-
-function loadNotes() {
-  try {
-    const savedNotes = localStorage.getItem(storageKey);
-
-    if (!savedNotes) {
-      return [];
-    }
-
-    const parsedNotes = JSON.parse(savedNotes);
-    if (!Array.isArray(parsedNotes)) {
-      throw new Error("Saved notes were not a list.");
-    }
-
-    return parsedNotes.filter(
-      (note) =>
-        typeof note?.id === "string" &&
-        typeof note?.text === "string" &&
-        note.text.trim().length > 0,
-    );
-  } catch (error) {
-    showStatus("Your saved notes could not be loaded. You can still add new notes.");
-    console.error("Unable to load notes from localStorage:", error);
-    return [];
+function isValidUpdate(update) {
+  if (
+    !update ||
+    typeof update.title !== "string" ||
+    typeof update.summary !== "string" ||
+    typeof update.category !== "string" ||
+    typeof update.source !== "string" ||
+    !/^\d{4}-\d{2}-\d{2}$/.test(update.publishedAt)
+  ) {
+    return false;
   }
-}
 
-function saveNotes() {
   try {
-    localStorage.setItem(storageKey, JSON.stringify(notes));
-    return true;
-  } catch (error) {
-    showStatus("Your note could not be saved. Check your browser storage settings.");
-    console.error("Unable to save notes to localStorage:", error);
+    const sourceUrl = new URL(update.sourceUrl);
+    return sourceUrl.protocol === "https:";
+  } catch {
     return false;
   }
 }
 
-function showStatus(message) {
-  statusMessage.textContent = message;
+function formatDate(dateString) {
+  return new Intl.DateTimeFormat("en", {
+    dateStyle: "long",
+    timeZone: "UTC",
+  }).format(new Date(`${dateString}T00:00:00Z`));
 }
 
-function renderNotes() {
-  list.replaceChildren();
+function createUpdateCard(update) {
+  const item = document.createElement("li");
+  item.className = "update-card";
 
-  for (const note of notes) {
-    const item = document.createElement("li");
-    item.className = "note";
+  const metadata = document.createElement("p");
+  metadata.className = "metadata";
+  metadata.textContent = `${update.category} · ${formatDate(update.publishedAt)}`;
 
-    const text = document.createElement("p");
-    text.textContent = note.text;
+  const title = document.createElement("h3");
+  title.textContent = update.title;
 
-    const deleteButton = document.createElement("button");
-    deleteButton.type = "button";
-    deleteButton.className = "delete-button";
-    deleteButton.textContent = "Delete";
-    deleteButton.setAttribute("aria-label", `Delete note: ${note.text}`);
-    deleteButton.addEventListener("click", () => deleteNote(note.id));
+  const summary = document.createElement("p");
+  summary.className = "summary";
+  summary.textContent = update.summary;
 
-    item.append(text, deleteButton);
-    list.append(item);
-  }
+  const source = document.createElement("a");
+  source.className = "source-link";
+  source.href = update.sourceUrl;
+  source.target = "_blank";
+  source.rel = "noopener noreferrer";
+  source.textContent = `Read at ${update.source}`;
 
-  emptyState.hidden = notes.length > 0;
-  count.textContent = `${notes.length} ${notes.length === 1 ? "note" : "notes"}`;
+  item.append(metadata, title, summary, source);
+  return item;
 }
 
-function deleteNote(noteId) {
-  const nextNotes = notes.filter((note) => note.id !== noteId);
+function renderUpdates(updates) {
+  updateList.replaceChildren(...updates.map(createUpdateCard));
+  emptyState.hidden = updates.length > 0;
+  updateCount.textContent = `${updates.length} ${updates.length === 1 ? "update" : "updates"}`;
+  feedStatus.textContent = updates.length
+    ? "Updates are ordered by publication date."
+    : "No updates are available yet.";
+}
 
-  if (nextNotes.length === notes.length) {
-    return;
-  }
+async function loadUpdates() {
+  try {
+    const response = await fetch("updates.json");
+    if (!response.ok) {
+      throw new Error(`The update feed returned HTTP ${response.status}.`);
+    }
 
-  notes = nextNotes;
-  if (saveNotes()) {
-    renderNotes();
-    showStatus("Note deleted.");
+    const data = await response.json();
+    if (!Array.isArray(data) || !data.every(isValidUpdate)) {
+      throw new Error("The update feed does not match the required format.");
+    }
+
+    const updates = [...data].sort((first, second) =>
+      second.publishedAt.localeCompare(first.publishedAt),
+    );
+    renderUpdates(updates);
+  } catch (error) {
+    updateList.replaceChildren();
+    emptyState.hidden = false;
+    emptyState.textContent = "Updates are temporarily unavailable. Please try again later.";
+    updateCount.textContent = "";
+    feedStatus.textContent = "The update feed could not be loaded.";
+    console.error("Unable to load AI updates:", error);
   }
 }
 
-form.addEventListener("submit", (event) => {
-  event.preventDefault();
-
-  const text = input.value.trim();
-  if (!text) {
-    showStatus("Enter a note before saving.");
-    input.focus();
-    return;
-  }
-
-  const note = {
-    id: crypto.randomUUID(),
-    text,
-  };
-
-  notes.unshift(note);
-  if (saveNotes()) {
-    input.value = "";
-    renderNotes();
-    showStatus("Note saved in this browser.");
-    input.focus();
-  } else {
-    notes.shift();
-  }
-});
-
-renderNotes();
+loadUpdates();
