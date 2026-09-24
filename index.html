@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="A small browser-only web app for saving learning notes."
+    />
+    <title>My Learning Notes</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <main class="page">
+      <header class="intro">
+        <p class="eyebrow">A beginner web app</p>
+        <h1>My Learning Notes</h1>
+        <p>
+          Add a short note below. It is saved in this browser, on this device.
+        </p>
+      </header>
+
+      <section class="card" aria-labelledby="new-note-title">
+        <h2 id="new-note-title">Add a note</h2>
+        <form id="note-form">
+          <label for="note-input">What did you learn?</label>
+          <div class="form-row">
+            <input
+              id="note-input"
+              name="note"
+              type="text"
+              maxlength="200"
+              required
+              autocomplete="off"
+              placeholder="For example, HTML creates the page structure"
+            />
+            <button type="submit">Save note</button>
+          </div>
+        </form>
+        <p id="status-message" class="status" role="status" aria-live="polite"></p>
+      </section>
+
+      <section class="card" aria-labelledby="saved-notes-title">
+        <div class="section-heading">
+          <h2 id="saved-notes-title">Saved notes</h2>
+          <p id="note-count">0 notes</p>
+        </div>
+        <p id="empty-state" class="empty-state">Your saved notes will appear here.</p>
+        <ul id="note-list" class="note-list" aria-label="Saved learning notes"></ul>
+      </section>
+    </main>
+
+    <script src="app.js"></script>
+  </body>
+</html>
